@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RNA flux explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAF0F3; --surface:#FFFFFF; --ink:#18242E; --muted:#56687A; --line:#C9D4DC;
+  --nuc:#4B3FA8; --cyt:#0C8577; --tot:#B8730E; --deg:#B23A48; --knob:#2F5C85;
+  --nuc-soft:rgba(75,63,168,.07); --cyt-soft:rgba(12,133,119,.05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E151B; --surface:#16212A; --ink:#E2EAF0; --muted:#93A4B2; --line:#2A3946;
+    --nuc:#A39AF2; --cyt:#3FC8B6; --tot:#EBAB3E; --deg:#EC7180; --knob:#7FB2E0;
+    --nuc-soft:rgba(163,154,242,.10); --cyt-soft:rgba(63,200,182,.06);
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:15px;line-height:1.5}
+header{max-width:1240px;margin:0 auto;padding:28px 24px 8px}
+h1{font-size:1.75rem;line-height:1.2;margin:0 0 6px;font-weight:700;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);max-width:68ch}
+.layout{max-width:1240px;margin:0 auto;padding:16px 24px 40px;
+  display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+h2{font-size:1rem;margin:0 0 10px}
+.knobs{display:grid;grid-template-columns:1fr 1fr;gap:14px 10px}
+.knob{display:flex;flex-direction:column;align-items:center;text-align:center}
+.knob svg{width:96px;height:96px;cursor:ns-resize;touch-action:none;border-radius:50%}
+.knob svg:focus-visible{outline:3px solid var(--knob);outline-offset:2px}
+.knob .name{font-weight:700;font-size:.95rem;margin-top:2px}
+.knob input{width:86px;margin-top:4px;padding:3px 6px;font:inherit;font-size:.9rem;text-align:center;
+  background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px}
+.knob input:focus-visible{outline:2px solid var(--knob)}
+.knob .unit{font-size:.78rem;color:var(--muted)}
+.knob .hl{font-size:.78rem;color:var(--muted)}
+.hint{font-size:.8rem;color:var(--muted);margin:12px 0 0}
+fieldset{border:0;padding:0;margin:18px 0 0}
+legend{font-weight:700;font-size:1rem;margin-bottom:6px;padding:0}
+.radio{display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:.92rem}
+.radio input{margin-top:4px}
+.radio.disabled{opacity:.45}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+button{font:inherit;font-size:.88rem;padding:6px 11px;border-radius:8px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--knob)}
+button:focus-visible{outline:2px solid var(--knob);outline-offset:1px}
+button.primary{background:var(--knob);color:var(--surface);border-color:var(--knob)}
+.check{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:.92rem}
+details{margin-top:18px;font-size:.88rem}
+summary{cursor:pointer;font-weight:700}
+.eq{font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:1rem;margin:8px 0;line-height:1.8}
+.view{display:grid;gap:24px}
+.cellgrid{display:grid;grid-template-columns:1fr 230px;gap:16px;align-items:center}
+@media (max-width:1060px){.cellgrid{grid-template-columns:1fr}}
+#cell{width:100%;height:auto;display:block}
+dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:.9rem}
+dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+dl .sep{grid-column:1/-1;border-top:1px solid var(--line);margin:4px 0}
+.sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:0}
+.caption{font-size:.8rem;color:var(--muted);margin:6px 0 0}
+.bargrid{display:grid;grid-template-columns:3fr 2fr;gap:24px;align-items:start}
+@media (max-width:1060px){.bargrid{grid-template-columns:1fr}}
+.bargrid svg{width:100%;height:auto;display:block}
+.charthead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.charthead h3{font-size:.95rem;margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:4px 9px;font-size:.8rem;background:transparent}
+.seg button[aria-pressed=true]{background:var(--knob);color:var(--surface)}
+.barlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin-top:6px}
+.barlegend span{display:inline-flex;align-items:center;gap:6px}
+.barlegend b{display:inline-block;width:14px;height:12px;border-radius:2px;border:1.5px solid var(--muted)}
+.dotscale{font-size:.85rem;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:6px}
+.dotscale select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:2px 4px}
+.warn{color:var(--deg)}
+.plothead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:20px;height:0;border-top:3px solid}
+.legend i.dash{border-top-style:dashed;border-top-width:2px}
+#plot{width:100%;height:320px;display:block;margin-top:8px}
+.scrub{display:flex;gap:10px;align-items:center;margin-top:8px}
+.scrub input{flex:1;accent-color:var(--knob)}
+.scrub output{min-width:76px;text-align:right;font-variant-numeric:tabular-nums;font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>Where does the RNA go?</h1>
+  <p>Turn the dials to set how fast a transcript is made, exported and degraded. The cell and the time course show how nuclear, cytoplasmic and whole-cell levels respond.</p>
+</header>
+
+<main class="layout">
+  <section class="panel" aria-label="Controls">
+    <h2>Rates</h2>
+    <div class="knobs" id="knobs"></div>
+    <p class="hint">Drag a dial up or down, scroll over it, or use arrow keys. Turn it all the way down (or type 0) to switch a step off. Hold Shift for fine control. Double-click to reset.</p>
+
+    <h2 style="margin-top:18px">Example transcripts</h2>
+    <div class="btnrow" id="presets"></div>
+
+    <fieldset>
+      <legend>Scenario</legend>
+      <label class="radio"><input type="radio" name="mode" value="induction" checked><span>Switch transcription on from zero</span></label>
+      <label class="radio"><input type="radio" name="mode" value="shutoff"><span>Shut transcription off from steady state</span></label>
+      <label class="radio disabled" id="stepLabel"><input type="radio" name="mode" value="step" disabled><span>Change rates from the pinned steady state</span></label>
+    </fieldset>
+
+    <div class="btnrow">
+      <button class="primary" id="pinBtn">Pin as reference</button>
+      <button id="clearBtn" hidden>Clear reference</button>
+    </div>
+
+    <label class="check"><input type="checkbox" id="rel"> Plot relative to steady state</label>
+
+    <details>
+      <summary>The model</summary>
+      <div class="eq">dN/dt = s − (k<sub>exp</sub> + k<sub>nd</sub>)·N<br>dC/dt = k<sub>exp</sub>·N − k<sub>cd</sub>·C</div>
+      <p>At steady state:</p>
+      <div class="eq">N* = s / (k<sub>exp</sub> + k<sub>nd</sub>)<br>C* = k<sub>exp</sub>·N* / k<sub>cd</sub></div>
+      <p>Nuclear RNA relaxes at rate k<sub>exp</sub> + k<sub>nd</sub>, so faster export or faster nuclear decay both make the nucleus respond faster. Cytoplasmic RNA lags behind, relaxing at k<sub>cd</sub>. Half-lives are ln2 / k.</p>
+    </details>
+  </section>
+
+  <section class="view">
+    <div class="panel">
+      <div class="cellgrid">
+        <div>
+          <svg id="cell" viewBox="0 0 600 360" role="img" aria-label="Cell schematic showing RNA in nucleus and cytoplasm"></svg>
+          <label class="dotscale">Each dot =
+            <select id="perDot">
+              <option>1</option><option>2</option><option>5</option><option selected>10</option>
+              <option>20</option><option>50</option><option>100</option><option>500</option><option>1000</option>
+            </select> molecules</label>
+          <p class="caption" id="cellCaption"></p>
+        </div>
+        <div>
+          <h2>At this moment</h2>
+          <dl id="nowStats"></dl>
+          <h2 style="margin-top:16px">At steady state</h2>
+          <dl id="ssStats"></dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="barTitle">Abundance</h2>
+      <div class="bargrid">
+        <div>
+          <div class="charthead">
+            <h3>Molecules per cell</h3>
+            <div class="seg" id="absScale">
+              <button aria-pressed="true" data-v="lin">Linear</button><button aria-pressed="false" data-v="log">Log</button>
+            </div>
+          </div>
+          <svg id="absBars" viewBox="0 0 460 260" role="img" aria-label="Bar chart of absolute RNA abundance"></svg>
+          <div class="barlegend" id="absLegend"></div>
+        </div>
+        <div>
+          <div class="charthead">
+            <h3 id="relTitle">Share of cellular RNA</h3>
+            <div class="seg" id="relKind">
+              <button aria-pressed="true" data-v="share">Nucleus vs cytoplasm</button><button aria-pressed="false" data-v="pct">% of steady state</button>
+            </div>
+          </div>
+          <svg id="relBars" viewBox="0 0 260 200" role="img" aria-label="Bar chart of relative RNA abundance"></svg>
+          <p class="caption" id="relCaption"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="plothead">
+        <h2 id="plotTitle">Time course</h2>
+        <div class="legend" id="legend"></div>
+      </div>
+      <p class="caption" id="notice" hidden></p>
+      <canvas id="plot" aria-label="Time course of nuclear, cytoplasmic and whole-cell RNA"></canvas>
+      <div class="scrub">
+        <button id="playBtn">Play</button>
+        <input type="range" id="time" min="0" max="1000" value="1000" aria-label="Time point shown in the cell">
+        <output id="timeOut"></output>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ---------- state ----------
+const DEFAULTS = {s:10, kexp:0.1, knd:0.02, kcd:0.01};
+const params = {...DEFAULTS};
+let pinned = null;
+let mode = 'induction';
+let relative = false;
+let tFrac = 1;
+let run = null;
+
+const KNOBS = [
+  {key:'s',    name:'Synthesis',            unit:'molecules / min', min:0.1,  max:100},
+  {key:'kexp', name:'Nuclear export',       unit:'per min',         min:0.001,max:1},
+  {key:'knd',  name:'Nuclear decay',        unit:'per min',         min:0.001,max:1},
+  {key:'kcd',  name:'Cytoplasmic decay',    unit:'per min',         min:0.001,max:1},
+];
+const PRESETS = [
+  {name:'Stable mRNA',            p:{s:10, kexp:0.2,  knd:0.02, kcd:0.006}},
+  {name:'Unstable mRNA',          p:{s:20, kexp:0.15, knd:0.02, kcd:0.07}},
+  {name:'Nuclear-retained lncRNA',p:{s:5,  kexp:0.004,knd:0.02, kcd:0.05}},
+  {name:'Nuclear surveillance target',p:{s:20,kexp:0.01,knd:0.3,kcd:0.02}},
+];
+
+// ---------- helpers ----------
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+function fmt(v){
+  if(v===Infinity) return '∞';
+  if(!isFinite(v)) return '–';
+  if(v===0) return '0';
+  const a=Math.abs(v);
+  if(a<0.001) return '≈0';
+  if(a>=999.5) return Math.round(v).toLocaleString();
+  if(a>=99.95) return v.toFixed(0);
+  if(a>=9.995) return v.toFixed(1);
+  if(a>=1) return v.toFixed(2);
+  return v.toPrecision(2);
+}
+function fmtTime(m){
+  if(m===Infinity) return '∞';
+  if(!isFinite(m)) return '–';
+  if(m<1) return (m*60).toFixed(0)+' s';
+  if(m<120) return fmt(m)+' min';
+  if(m<48*60) return fmt(m/60)+' h';
+  return fmt(m/1440)+' d';
+}
+const LN2 = Math.log(2);
+function steady(p){
+  const a=p.kexp+p.knd;
+  const N = p.s===0 ? 0 : (a>0 ? p.s/a : Infinity);
+  let C;
+  if(p.kexp===0 || N===0) C=0;
+  else if(p.kcd===0 || !isFinite(N)) C=Infinity;
+  else C=p.kexp*N/p.kcd;
+  return {N,C,T:N+C,ok:isFinite(N+C)};
+}
+// Exact solution of the linear model (no numerical stepping, so it stays stable
+// even when nuclear and cytoplasmic timescales differ by orders of magnitude).
+function phi1(k,t){ return k*t<1e-8 ? t : -Math.expm1(-k*t)/k; }            // ∫0^t e^{-k u} du
+function gconv(a,b,t){                                                         // ∫0^t e^{-b(t-u)} e^{-a u} du
+  if(Math.abs(a-b)<=1e-7*Math.max(a,b,1e-12)) return t*Math.exp(-0.5*(a+b)*t);
+  return (Math.exp(-a*t)-Math.exp(-b*t))/(b-a);
+}
+function evolve(p,N0,C0,t){
+  const a=p.kexp+p.knd, b=p.kcd;
+  const N=N0*Math.exp(-a*t)+p.s*phi1(a,t);
+  let fromSyn;                                                                 // ∫0^t e^{-b(t-u)} ∫0^u e^{-a v} dv du
+  if(a>0) fromSyn=(phi1(b,t)-gconv(a,b,t))/a;
+  else    fromSyn= b>0 ? (t-phi1(b,t))/b : t*t/2;
+  const C=C0*Math.exp(-b*t)+p.kexp*(N0*gconv(a,b,t)+p.s*fromSyn);
+  return [N,Math.max(0,C)];
+}
+function simulate(p,N0,C0,T,steps=600){
+  const t=[],N=[],C=[];
+  for(let i=0;i<=steps;i++){const ti=T*i/steps,[n,c]=evolve(p,N0,C0,ti);t.push(ti);N.push(n);C.push(c);}
+  return {t,N,C,p};
+}
+function timescale(p){
+  const r=[p.kexp+p.knd, p.kexp>0?p.kcd:0].filter(x=>x>0);
+  return r.length ? Math.max(...r.map(x=>1/x)) : null;
+}
+function niceNum(x,round){
+  const e=Math.floor(Math.log10(x)), f=x/Math.pow(10,e);
+  let nf; if(round){nf=f<1.5?1:f<3?2:f<7?5:10}else{nf=f<=1?1:f<=2?2:f<=5?5:10}
+  return nf*Math.pow(10,e);
+}
+function ticks(max,n=5){
+  const step=niceNum(niceNum(max,false)/n,true);
+  const out=[]; for(let v=0;v<=max+1e-9;v+=step) out.push(v); return {out,step};
+}
+
+// ---------- knobs ----------
+const knobEls = {};
+const ZF=0.06; // dial travel reserved for the "0" position
+const toFrac=(k,v)=>v<=0?0:ZF+(1-ZF)*Math.log(v/k.min)/Math.log(k.max/k.min);
+const fromFrac=(k,f)=>f<ZF/2?0:k.min*Math.pow(k.max/k.min,clamp((f-ZF)/(1-ZF),0,1));
+function nudge(k,df){
+  const v=params[k.key];
+  if(v===0) return df>0?k.min:0;
+  const f=toFrac(k,v)+df;
+  if(df<0 && f<ZF) return v>k.min?k.min:0;
+  return fromFrac(k,Math.max(f,ZF));
+}
+function arcPath(cx,cy,r,a0,a1){
+  const P=a=>{const r_=a*Math.PI/180;return [cx+r*Math.sin(r_),cy-r*Math.cos(r_)]};
+  const [x0,y0]=P(a0),[x1,y1]=P(a1);
+  return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+}
+function buildKnob(k){
+  const wrap=document.createElement('div'); wrap.className='knob';
+  wrap.innerHTML=`
+    <svg viewBox="0 0 96 96" tabindex="0" role="slider" aria-label="${k.name}">
+      <path class="trk" fill="none" stroke-width="7" stroke-linecap="round"/>
+      <path class="val" fill="none" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="48" cy="48" r="27" class="body" stroke-width="1.5"/>
+      <line class="ptr" x1="48" y1="48" stroke-width="3.5" stroke-linecap="round"/>
+      <text class="z" x="13" y="93" font-size="10" text-anchor="middle">0</text>
+    </svg>
+    <div class="name">${k.name}</div>
+    <input type="text" inputmode="decimal" aria-label="${k.name} value">
+    <div class="unit">${k.unit}</div>
+    <div class="hl"></div>`;
+  document.getElementById('knobs').appendChild(wrap);
+  const svg=wrap.querySelector('svg'), input=wrap.querySelector('input');
+  knobEls[k.key]={wrap,svg,input,k};
+
+  let startY,startX,startF,dragging=false;
+  svg.addEventListener('pointerdown',e=>{dragging=true;startY=e.clientY;startX=e.clientX;startF=toFrac(k,params[k.key]);svg.setPointerCapture(e.pointerId);svg.focus();});
+  svg.addEventListener('pointermove',e=>{if(!dragging)return;
+    const sens=e.shiftKey?900:200;
+    setParam(k.key,fromFrac(k,startF+((startY-e.clientY)+(e.clientX-startX))/sens));});
+  svg.addEventListener('pointerup',()=>dragging=false);
+  svg.addEventListener('pointercancel',()=>dragging=false);
+  svg.addEventListener('wheel',e=>{e.preventDefault();
+    const d=(e.shiftKey?0.004:0.02)*(e.deltaY<0?1:-1);
+    setParam(k.key,nudge(k,d));},{passive:false});
+  svg.addEventListener('dblclick',()=>setParam(k.key,DEFAULTS[k.key]));
+  svg.addEventListener('keydown',e=>{
+    const fine=e.shiftKey?0.004:0.02; let nv=null;
+    if(e.key==='ArrowUp'||e.key==='ArrowRight') nv=nudge(k,fine);
+    if(e.key==='ArrowDown'||e.key==='ArrowLeft') nv=nudge(k,-fine);
+    if(e.key==='PageUp') nv=nudge(k,0.1); if(e.key==='PageDown') nv=nudge(k,-0.1);
+    if(e.key==='Home') nv=0; if(e.key==='End') nv=k.max;
+    if(nv!==null){e.preventDefault();setParam(k.key,nv);}
+  });
+  input.addEventListener('change',()=>{
+    const v=parseFloat(input.value);
+    if(isFinite(v)&&v>=0) setParam(k.key,v===0?0:clamp(v,k.min,k.max)); else drawKnob(k.key);
+  });
+}
+function drawKnob(key){
+  const {svg,input,wrap,k}=knobEls[key]; const v=params[key]; const f=toFrac(k,v);
+  const a=-135+270*f;
+  svg.querySelector('.trk').setAttribute('d',arcPath(48,48,40,-135,135));
+  svg.querySelector('.trk').setAttribute('stroke',css('--line'));
+  const val=svg.querySelector('.val');
+  val.setAttribute('d',f>0.002?arcPath(48,48,40,-135,a):'');
+  val.setAttribute('stroke',css('--knob'));
+  const body=svg.querySelector('.body'); body.setAttribute('fill',css('--bg')); body.setAttribute('stroke',css('--line'));
+  const ptr=svg.querySelector('.ptr'); const r=a*Math.PI/180;
+  ptr.setAttribute('x2',48+20*Math.sin(r)); ptr.setAttribute('y2',48-20*Math.cos(r));
+  ptr.setAttribute('stroke',css('--ink'));
+  svg.querySelector('.z').setAttribute('fill',v===0?css('--knob'):css('--muted'));
+  svg.setAttribute('aria-valuenow',v); svg.setAttribute('aria-valuetext',`${fmt(v)} ${k.unit}`);
+  if(document.activeElement!==input) input.value=fmt(v);
+  const hl={s:v?`one every ${fmtTime(1/v)}`:'transcription off',
+    kexp:v?`half-time ${fmtTime(LN2/v)}`:'no export',
+    knd:v?`half-life ${fmtTime(LN2/v)}`:'no nuclear decay',
+    kcd:v?`half-life ${fmtTime(LN2/v)}`:'no cytoplasmic decay'};
+  wrap.querySelector('.hl').textContent=hl[key];
+}
+function setParam(key,v){ params[key]=v; drawKnob(key); update(); }
+
+// ---------- presets & controls ----------
+PRESETS.forEach(pr=>{
+  const b=document.createElement('button'); b.textContent=pr.name;
+  b.onclick=()=>{Object.assign(params,pr.p); KNOBS.forEach(k=>drawKnob(k.key)); update();};
+  document.getElementById('presets').appendChild(b);
+});
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',e=>{mode=e.target.value;update();}));
+document.getElementById('rel').addEventListener('change',e=>{relative=e.target.checked;update();});
+const pinBtn=document.getElementById('pinBtn'), clearBtn=document.getElementById('clearBtn');
+const stepRadio=document.querySelector('input[value=step]'), stepLabel=document.getElementById('stepLabel');
+pinBtn.onclick=()=>{pinned={...params}; pinBtn.textContent='Re-pin current'; clearBtn.hidden=false;
+  stepRadio.disabled=false; stepLabel.classList.remove('disabled'); update();};
+clearBtn.onclick=()=>{pinned=null; pinBtn.textContent='Pin as reference'; clearBtn.hidden=true;
+  stepRadio.disabled=true; stepLabel.classList.add('disabled');
+  if(mode==='step'){mode='induction';document.querySelector('input[value=induction]').checked=true;}
+  update();};
+
+const timeIn=document.getElementById('time'), timeOut=document.getElementById('timeOut'), playBtn=document.getElementById('playBtn');
+timeIn.addEventListener('input',()=>{tFrac=timeIn.value/1000; stopPlay(); render();});
+let playing=null;
+function stopPlay(){ if(playing){cancelAnimationFrame(playing);playing=null;playBtn.textContent='Play';} }
+playBtn.onclick=()=>{
+  if(playing){stopPlay();return;}
+  playBtn.textContent='Pause';
+  if(tFrac>=0.999) tFrac=0;
+  let last=performance.now();
+  const step=now=>{tFrac=Math.min(1,tFrac+(now-last)/5000); last=now;
+    timeIn.value=Math.round(tFrac*1000); render();
+    if(tFrac<1) playing=requestAnimationFrame(step); else stopPlay();};
+  playing=requestAnimationFrame(step);
+};
+
+// ---------- compute ----------
+let notice='';
+function startState(p,T){
+  const ss=steady(p);
+  if(ss.ok) return {N:ss.N,C:ss.C,T:ss.T,fb:false};
+  const r=simulate(p,0,0,T), n=r.N.at(-1), c=r.C.at(-1);
+  return {N:n,C:c,T:n+c,fb:true};
+}
+// Pick a time window long enough that every pool ends within 0.002% of where it is heading,
+// so the right-hand end of the plot really is steady state.
+function settled(p,N0,C0,tg,T){
+  if(!tg.ok) return true;
+  const [n,c]=evolve(p,N0,C0,T);
+  const ok=(x,x0,t)=>Math.abs(x-t)<=2e-5*Math.max(Math.abs(t),Math.abs(x0))+1e-12;
+  return ok(n,N0,tg.N)&&ok(c,C0,tg.C);
+}
+function niceCeil(x){
+  const e=Math.floor(Math.log10(x)), f=x/Math.pow(10,e);
+  const steps=[1,1.5,2,2.5,3,4,5,6,8,10];
+  return steps.find(v=>v>=f-1e-9)*Math.pow(10,e);
+}
+function chooseWindow(){
+  const ts=[timescale(params), pinned&&timescale(pinned)].filter(x=>x);
+  if(!ts.length) return 60;
+  const checks=[];
+  const add=p=>{
+    const ss=steady(p);
+    if(mode==='shutoff'){ if(ss.ok) checks.push([{...p,s:0},ss.N,ss.C,{N:0,C:0,ok:true}]); }
+    else checks.push([p,0,0,ss]);
+  };
+  if(mode==='step'){ const sp=steady(pinned); if(sp.ok) checks.push([params,sp.N,sp.C,steady(params)]); }
+  else { add(params); if(pinned) add(pinned); }
+  let T=4*Math.max(...ts);
+  for(let k=0;k<20 && !checks.every(c=>settled(...c,T));k++) T*=1.25;
+  return niceCeil(T);
+}
+function compute(){
+  const T=chooseWindow();
+  notice='';
+  let cur,ref=null;
+  if(mode==='induction'){
+    cur=simulate(params,0,0,T); cur.norm=steady(params);
+    if(pinned){ref=simulate(pinned,0,0,T); ref.norm=steady(pinned);}
+  } else if(mode==='shutoff'){
+    const st=startState(params,T); cur=simulate({...params,s:0},st.N,st.C,T); cur.norm=st;
+    if(pinned){const sr=startState(pinned,T); ref=simulate({...pinned,s:0},sr.N,sr.C,T); ref.norm=sr; if(sr.fb) st.fb=true;}
+    if(st.fb) notice='These rates never reach a steady state, so the run starts from the level reached after one time window of transcription.';
+  } else {
+    const sp=startState(pinned,T); cur=simulate(params,sp.N,sp.C,T); cur.norm=steady(params);
+    if(sp.fb) notice='The pinned rates never reach a steady state, so the run starts from the level they reach after one time window.';
+  }
+  if(!steady(params).ok && mode!=='shutoff') notice=(notice?notice+' ':'')+
+    'With these rates RNA keeps accumulating: '+(steady(params).N===Infinity?'nothing removes nuclear RNA.':'nothing removes cytoplasmic RNA.');
+  return {cur,ref,T};
+}
+function update(){ run=compute(); render(); }
+
+// ---------- cell schematic ----------
+function rng(seed){return()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646}}
+const R=rng(7), nucPts=[], cytPts=[];
+const CELL={cx:290,cy:180,rx:262,ry:166}, NUC={cx:250,cy:180,r:100};
+while(nucPts.length<380){const x=150+R()*200,y=80+R()*200;
+  if(Math.hypot(x-NUC.cx,y-NUC.cy)<NUC.r-8 && y>132) nucPts.push([x,y]);}
+while(cytPts.length<900){const x=30+R()*520,y=16+R()*328;
+  if(((x-CELL.cx)/(CELL.rx-12))**2+((y-CELL.cy)/(CELL.ry-12))**2<1 && Math.hypot(x-NUC.cx,y-NUC.cy)>NUC.r+8) cytPts.push([x,y]);}
+
+function arrow(x1,y1,x2,y2,w,color,bg){
+  const ang=Math.atan2(y2-y1,x2-x1), hl=7+w*1.1, hw=5+w*0.9;
+  const bx=x2-hl*Math.cos(ang), by=y2-hl*Math.sin(ang);
+  const px=-Math.sin(ang), py=Math.cos(ang);
+  const head=`M${x2},${y2} L${bx+hw*px},${by+hw*py} L${bx-hw*px},${by-hw*py} Z`;
+  if(w<=0.01) return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3 4" opacity=".6"/>`;
+  return `<line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}" stroke="${bg}" stroke-width="${w+5}" stroke-linecap="round"/>
+    <path d="${head}" fill="${bg}" stroke="${bg}" stroke-width="5" stroke-linejoin="round"/>
+    <line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>
+    <path d="${head}" fill="${color}"/>`;
+}
+function label(x,y,txt,sub,anchor,color,bg){
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="13" font-weight="700" fill="${color}" stroke="${bg}" stroke-width="4" paint-order="stroke">${txt}</text>
+    <text x="${x}" y="${y+15}" text-anchor="${anchor}" font-size="12" fill="${color}" stroke="${bg}" stroke-width="4" paint-order="stroke">${sub}</text>`;
+}
+function drawCell(i){
+  const {cur}=run, p=cur.p, N=cur.N[i], C=cur.C[i];
+  const per=+document.getElementById('perDot').value;
+  const wantN=Math.round(N/per), wantC=Math.round(C/per);
+  const nN=Math.min(nucPts.length,wantN), nC=Math.min(cytPts.length,wantC);
+  const fl={syn:p.s, exp:p.kexp*N, nd:p.knd*N, cd:p.kcd*C};
+  const fmax=Math.max(fl.syn,fl.exp,fl.nd,fl.cd)||1;
+  const W=f=>f<=1e-9?0:1.5+9*f/fmax;
+  const ink=css('--ink'),mut=css('--muted'),nuc=css('--nuc'),cyt=css('--cyt'),deg=css('--deg'),sf=css('--surface'),line=css('--line');
+  let s='';
+  s+=`<ellipse cx="${CELL.cx}" cy="${CELL.cy}" rx="${CELL.rx}" ry="${CELL.ry}" fill="${css('--cyt-soft')}" stroke="${line}" stroke-width="2"/>`;
+  s+=`<circle cx="${NUC.cx}" cy="${NUC.cy}" r="${NUC.r}" fill="${css('--nuc-soft')}" stroke="${nuc}" stroke-width="2" stroke-dasharray="10 5"/>`;
+  for(let j=0;j<nC;j++) s+=`<circle cx="${cytPts[j][0].toFixed(1)}" cy="${cytPts[j][1].toFixed(1)}" r="2.3" fill="${cyt}" opacity=".85"/>`;
+  for(let j=0;j<nN;j++) s+=`<circle cx="${nucPts[j][0].toFixed(1)}" cy="${nucPts[j][1].toFixed(1)}" r="2.3" fill="${nuc}" opacity=".85"/>`;
+  // gene
+  let dna1='M212,112',dna2='M212,112';
+  for(let x=212;x<=288;x+=2){const y1=112+4*Math.sin((x-212)/5),y2=112-4*Math.sin((x-212)/5);dna1+=` L${x},${y1.toFixed(1)}`;dna2+=` L${x},${y2.toFixed(1)}`;}
+  s+=`<path d="${dna1}" fill="none" stroke="${ink}" stroke-width="1.6"/><path d="${dna2}" fill="none" stroke="${ink}" stroke-width="1.6" opacity=".55"/>`;
+  s+=`<text x="250" y="99" text-anchor="middle" font-size="11" fill="${mut}">gene</text>`;
+  // arrows
+  s+=arrow(250,122,250,160,W(fl.syn),ink,sf);
+  s+=label(262,140,'synthesis',`${fmt(fl.syn)} /min`,'start',ink,sf);
+  s+=arrow(318,180,410,180,W(fl.exp),cyt,sf);
+  s+=label(364,160,'export',`${fmt(fl.exp)} /min`,'middle',cyt,sf);
+  s+=arrow(226,210,202,244,W(fl.nd),deg,sf);
+  s+=`<text x="194" y="262" font-size="20" text-anchor="middle" fill="${deg}" stroke="${sf}" stroke-width="4" paint-order="stroke">∅</text>`;
+  s+=label(176,224,'nuclear decay',`${fmt(fl.nd)} /min`,'end',deg,sf);
+  s+=arrow(452,222,494,256,W(fl.cd),deg,sf);
+  s+=`<text x="505" y="276" font-size="20" text-anchor="middle" fill="${deg}" stroke="${sf}" stroke-width="4" paint-order="stroke">∅</text>`;
+  s+=label(478,206,'cytoplasmic decay',`${fmt(fl.cd)} /min`,'middle',deg,sf);
+  s+=`<text x="300" y="268" font-size="13" font-weight="700" fill="${nuc}" stroke="${sf}" stroke-width="4" paint-order="stroke">Nucleus</text>`;
+  s+=`<text x="120" y="74" font-size="13" font-weight="700" fill="${cyt}" stroke="${sf}" stroke-width="4" paint-order="stroke">Cytoplasm</text>`;
+  document.getElementById('cell').innerHTML=s;
+  let cap='Dot counts are absolute, so the cell fills up as RNA accumulates. Arrow widths show the flux through each step right now.';
+  if(wantN>nN||wantC>nC) cap=`<span class="warn">Too many molecules to draw at this scale (showing ${nN} of ${wantN} nuclear and ${nC} of ${wantC} cytoplasmic dots). Raise the molecules per dot.</span>`;
+  document.getElementById('cellCaption').innerHTML=cap;
+
+  const tot=N+C;
+  document.getElementById('nowStats').innerHTML=`
+    <dt><span class="sw" style="background:var(--nuc)"></span>Nuclear</dt><dd>${fmt(N)}</dd>
+    <dt><span class="sw" style="background:var(--cyt)"></span>Cytoplasmic</dt><dd>${fmt(C)}</dd>
+    <dt><span class="sw" style="background:var(--tot)"></span>Whole cell</dt><dd>${fmt(tot)}</dd>
+    <dt>Nuclear fraction</dt><dd>${tot>0?(100*N/tot).toFixed(0)+'%':'–'}</dd>`;
+}
+function drawSS(){
+  const p=params, ss=steady(p), a=p.kexp+p.knd;
+  const pr=pinned?steady(pinned):null;
+  const cmp=(v,r)=>pr?`<span style="color:var(--muted);font-weight:400"> (${fmt(r)})</span> ${fmt(v)}`:fmt(v);
+  const frac = !ss.ok ? (isFinite(ss.N)?'→ 0%':'→ 100%') : (ss.T>0?(100*ss.N/ss.T).toFixed(0)+'%':'–');
+  document.getElementById('ssStats').innerHTML=`
+    <dt>Nuclear</dt><dd>${cmp(ss.N,pr&&pr.N)}</dd>
+    <dt>Cytoplasmic</dt><dd>${cmp(ss.C,pr&&pr.C)}</dd>
+    <dt>Whole cell</dt><dd>${cmp(ss.T,pr&&pr.T)}</dd>
+    <dt>Nuclear fraction</dt><dd>${frac}</dd>
+    <div class="sep"></div>
+    <dt>Exported before decay</dt><dd>${a>0?(100*p.kexp/a).toFixed(0)+'%':'–'}</dd>
+    <dt>Mean nuclear dwell</dt><dd>${a>0?fmtTime(1/a):'∞'}</dd>
+    <dt>Cytoplasmic half-life</dt><dd>${p.kcd>0?fmtTime(LN2/p.kcd):'∞'}</dd>
+    ${!ss.ok?'<dt style="grid-column:1/-1;font-size:.78rem">∞ means levels keep rising with no steady state</dt>':''}
+    ${pr?'<dt style="grid-column:1/-1;font-size:.78rem">Pinned values in brackets</dt>':''}`;
+}
+
+// ---------- plot ----------
+const canvas=document.getElementById('plot');
+function drawPlot(i){
+  const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  const g=canvas.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const m={l:70,r:14,t:12,b:38}, pw=w-m.l-m.r, ph=h-m.t-m.b;
+  const {cur,ref,T}=run;
+  const nrm=(v,arr)=>(isFinite(v)&&v>0)?v:(Math.max(...arr)||1);
+  const series=r=>{
+    if(!relative) return {N:r.N,C:r.C,T:r.N.map((v,j)=>v+r.C[j])};
+    const tot=r.N.map((v,j)=>v+r.C[j]);
+    const nN=nrm(r.norm.N,r.N),nC=nrm(r.norm.C,r.C),nT=nrm(r.norm.T,tot);
+    return {N:r.N.map(v=>v/nN),C:r.C.map(v=>v/nC),T:tot.map(v=>v/nT)};
+  };
+  const S=series(cur), Sr=ref?series(ref):null;
+  let ymax=Math.max(...S.N,...S.C,...S.T, ...(Sr?[...Sr.N,...Sr.C,...Sr.T]:[]));
+  if(!relative && mode!=='shutoff'){const ss=cur.norm; if(isFinite(ss.T)) ymax=Math.max(ymax,ss.T);}
+  ymax=(ymax||1)*1.08;
+  const X=t=>m.l+pw*t/T, Y=v=>m.t+ph*(1-v/ymax);
+  const ink=css('--ink'),mut=css('--muted'),line=css('--line');
+  g.font='12px "Atkinson Hyperlegible",system-ui,sans-serif';
+  // grid
+  const yt=ticks(ymax/1.08,5); g.strokeStyle=line; g.lineWidth=1; g.fillStyle=mut; g.textAlign='right'; g.textBaseline='middle';
+  yt.out.forEach(v=>{g.beginPath();g.moveTo(m.l,Y(v));g.lineTo(m.l+pw,Y(v));g.stroke();g.fillText(relative?(v*100).toFixed(0)+'%':fmt(v),m.l-8,Y(v));});
+  const useH=T>180, tu=useH?60:1;
+  const xt=ticks(T/tu,6); g.textAlign='center'; g.textBaseline='top';
+  xt.out.forEach(v=>{const x=X(v*tu);g.beginPath();g.moveTo(x,m.t+ph);g.lineTo(x,m.t+ph+4);g.stroke();g.fillText(fmt(v),x,m.t+ph+7);});
+  g.fillText(useH?'time (h)':'time (min)',m.l+pw/2,m.t+ph+22);
+  g.save(); g.translate(12,m.t+ph/2); g.rotate(-Math.PI/2); g.fillText(relative?'% of steady state':'molecules per cell',0,-6); g.restore();
+  g.strokeStyle=mut; g.beginPath(); g.moveTo(m.l,m.t); g.lineTo(m.l,m.t+ph); g.lineTo(m.l+pw,m.t+ph); g.stroke();
+  // curves
+  const line_=(arr,t,color,wid,dash,alpha)=>{g.save();g.globalAlpha=alpha;g.strokeStyle=color;g.lineWidth=wid;g.setLineDash(dash);g.lineJoin='round';
+    g.beginPath();arr.forEach((v,j)=>{const x=X(t[j]),y=Y(v);j?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.restore();};
+  const cN=css('--nuc'),cC=css('--cyt'),cT=css('--tot');
+  if(Sr){line_(Sr.T,ref.t,cT,2,[6,5],.55);line_(Sr.C,ref.t,cC,2,[6,5],.55);line_(Sr.N,ref.t,cN,2,[6,5],.55);}
+  if(!relative){ // steady-state guide lines for current params
+    const ss=cur.norm; [[ss.N,cN],[ss.C,cC],[ss.T,cT]].forEach(([v,c])=>{
+      if(mode==='shutoff'||!isFinite(v)) return; g.save();g.strokeStyle=c;g.globalAlpha=.35;g.setLineDash([2,4]);g.beginPath();g.moveTo(m.l,Y(v));g.lineTo(m.l+pw,Y(v));g.stroke();g.restore();});
+  }
+  line_(S.T,cur.t,cT,3,[],1); line_(S.C,cur.t,cC,2.5,[],1); line_(S.N,cur.t,cN,2.5,[],1);
+  // playhead
+  const tx=X(cur.t[i]); g.save(); g.strokeStyle=ink; g.globalAlpha=.5; g.setLineDash([3,3]);
+  g.beginPath(); g.moveTo(tx,m.t); g.lineTo(tx,m.t+ph); g.stroke(); g.restore();
+  [[S.T[i],cT],[S.C[i],cC],[S.N[i],cN]].forEach(([v,c])=>{g.beginPath();g.arc(tx,Y(v),4.5,0,7);g.fillStyle=c;g.fill();g.lineWidth=2;g.strokeStyle=css('--surface');g.stroke();});
+  timeOut.textContent=fmtTime(cur.t[i]);
+}
+function drawLegend(){
+  const titles={induction:'Switching transcription on',shutoff:'After transcription shut-off',step:'Moving from the pinned steady state to the new rates'};
+  document.getElementById('plotTitle').textContent=titles[mode];
+  let h=`<span><i style="border-color:var(--nuc)"></i>Nuclear</span><span><i style="border-color:var(--cyt)"></i>Cytoplasmic</span><span><i style="border-color:var(--tot)"></i>Whole cell</span>`;
+  if(run.ref) h+=`<span><i class="dash" style="border-color:var(--muted)"></i>Pinned reference</span>`;
+  document.getElementById('legend').innerHTML=h;
+}
+// ---------- bar charts ----------
+let absLog=false, relKind='share';
+function segInit(id,cb){
+  const el=document.getElementById(id);
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    cb(b.dataset.v); render();});
+}
+segInit('absScale',v=>absLog=v==='log');
+segInit('relKind',v=>relKind=v);
+document.getElementById('perDot').addEventListener('change',render);
+
+function barSeries(i){
+  const {cur}=run, N=cur.N[i], C=cur.C[i];
+  const ss=steady(params);
+  const out=[{name:`Now (${fmtTime(cur.t[i])})`,v:[N,C,N+C],style:'solid'},
+             {name:'Steady state',v:[ss.N,ss.C,ss.T],style:'soft'}];
+  if(pinned){const pr=steady(pinned); out.push({name:'Pinned steady state',v:[pr.N,pr.C,pr.T],style:'outline'});}
+  return out;
+}
+const T_=(x,y,t,o={})=>`<text x="${x}" y="${y}" font-size="${o.size||11}" text-anchor="${o.a||'middle'}" fill="${o.fill||css('--muted')}"${o.w?` font-weight="${o.w}"`:''}>${t}</text>`;
+function drawAbs(series){
+  const W=460,H=260,m={l:54,r:8,t:18,b:30},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const cols=[css('--nuc'),css('--cyt'),css('--tot')], names=['Nuclear','Cytoplasmic','Whole cell'];
+  const line=css('--line'), mut=css('--muted'), ink=css('--ink');
+  const vals=series.flatMap(s=>s.v).filter(v=>isFinite(v));
+  let Y, tks=[];
+  if(absLog){
+    const pos=vals.filter(v=>v>0);
+    let lo=pos.length?Math.floor(Math.log10(Math.min(...pos))):0, hi=pos.length?Math.ceil(Math.log10(Math.max(...pos))):1;
+    if(hi===lo) hi=lo+1; if(hi-lo>6) lo=hi-6;
+    Y=v=>v<=0?m.t+ph:m.t+ph*(1-clamp((Math.log10(v)-lo)/(hi-lo),0,1));
+    for(let e=lo;e<=hi;e++) tks.push(Math.pow(10,e));
+  } else {
+    const vmax=(Math.max(0,...vals)||1)*1.1;
+    const t=ticks(vmax/1.1,5); tks=t.out; const top=Math.max(vmax,tks.at(-1));
+    Y=v=>m.t+ph*(1-clamp(v/top,0,1));
+  }
+  let g='';
+  tks.forEach(v=>{const y=Y(v); g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y}" y2="${y}" stroke="${line}"/>`+T_(m.l-6,y+4,fmt(v),{a:'end'});});
+  g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${m.t+ph}" y2="${m.t+ph}" stroke="${mut}"/>`;
+  const gw=pw/3, bw=Math.min(40,gw*0.78/series.length);
+  names.forEach((nm,k)=>{
+    const gx=m.l+gw*k+gw/2, x0=gx-bw*series.length/2;
+    series.forEach((s,j)=>{
+      const v=s.v[k], x=x0+j*bw+2, w=bw-4, inf=!isFinite(v);
+      const y=inf?m.t:Y(v), h=m.t+ph-y;
+      const st=s.style==='solid'?`fill="${cols[k]}"`:s.style==='soft'?`fill="${cols[k]}" fill-opacity=".3" stroke="${cols[k]}" stroke-width="1.5"`:`fill="none" stroke="${cols[k]}" stroke-width="1.5" stroke-dasharray="4 3"`;
+      if(h>0.3) g+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" ${st}/>`;
+      g+=T_(x+w/2,y-4,inf?'∞':fmt(v),{size:10,fill:ink});
+    });
+    g+=T_(gx,H-10,nm,{size:12,fill:ink,w:700});
+  });
+  document.getElementById('absBars').innerHTML=g;
+  document.getElementById('absLegend').innerHTML=series.map(s=>{
+    const st=s.style==='solid'?'background:var(--muted)':s.style==='soft'?'background:transparent;opacity:.8':'border-style:dashed;background:transparent';
+    return `<span><b style="${st}"></b>${s.name}</span>`;}).join('');
+}
+function drawRel(series){
+  const W=260, mut=css('--muted'), ink=css('--ink'), sf=css('--surface'), line=css('--line');
+  let g='', y=8;
+  if(relKind==='share'){
+    document.getElementById('relTitle').textContent='Share of cellular RNA';
+    series.forEach(s=>{
+      const [N,C]=s.v; let f;
+      if(!isFinite(N)) f=1; else if(!isFinite(C)) f=0; else f=(N+C)>0?N/(N+C):null;
+      g+=T_(0,y+12,s.name,{a:'start',fill:ink,size:12,w:700});
+      g+=T_(W,y+12,f===null?'no RNA':`${(100*f).toFixed(0)}% nuclear`,{a:'end',size:12});
+      const by=y+18,bh=22;
+      if(f===null) g+=`<rect x="0" y="${by}" width="${W}" height="${bh}" rx="3" fill="none" stroke="${line}"/>`;
+      else{
+        const wn=W*f, op=s.style==='solid'?1:s.style==='soft'?.45:.25;
+        g+=`<rect x="0" y="${by}" width="${W}" height="${bh}" rx="3" fill="${css('--cyt')}" fill-opacity="${op}"/>`;
+        g+=`<rect x="0" y="${by}" width="${wn}" height="${bh}" rx="3" fill="${css('--nuc')}" fill-opacity="${op}"/>`;
+        if(s.style==='outline') g+=`<rect x="0" y="${by}" width="${W}" height="${bh}" rx="3" fill="none" stroke="${mut}" stroke-dasharray="4 3"/>`;
+        const tc=op===1?sf:ink;
+        if(wn>34) g+=T_(wn/2,by+15,`${(100*f).toFixed(0)}%`,{fill:tc,size:11,w:700});
+        if(W-wn>34) g+=T_(wn+(W-wn)/2,by+15,`${(100*(1-f)).toFixed(0)}%`,{fill:tc,size:11,w:700});
+      }
+      y+=56;
+    });
+    document.getElementById('relCaption').innerHTML='<span class="sw" style="background:var(--nuc)"></span>Nucleus <span class="sw" style="background:var(--cyt);margin-left:10px"></span>Cytoplasm';
+  } else {
+    document.getElementById('relTitle').textContent='Now, as % of steady state';
+    const now=series[0].v, ss=series[1].v, cols=[css('--nuc'),css('--cyt'),css('--tot')], names=['Nuclear','Cytoplasmic','Whole cell'];
+    const pct=now.map((v,k)=>isFinite(ss[k])&&ss[k]>0?100*v/ss[k]:null);
+    const top=Math.max(100,...pct.filter(x=>x!==null))*1.05, lx=W*100/top;
+    names.forEach((nm,k)=>{
+      g+=T_(0,y+12,nm,{a:'start',fill:ink,size:12,w:700});
+      g+=T_(W,y+12,pct[k]===null?(ss[k]===0?'steady state is 0':'no steady state'):`${pct[k].toFixed(0)}%`,{a:'end',size:12});
+      const by=y+18,bh=22;
+      g+=`<rect x="0" y="${by}" width="${W}" height="${bh}" rx="3" fill="${line}" fill-opacity=".35"/>`;
+      if(pct[k]!==null) g+=`<rect x="0" y="${by}" width="${W*pct[k]/top}" height="${bh}" rx="3" fill="${cols[k]}"/>`;
+      y+=56;
+    });
+    g+=`<line x1="${lx}" x2="${lx}" y1="22" y2="${y-12}" stroke="${ink}" stroke-dasharray="3 3"/>`+T_(lx,y+2,'100%',{size:10});
+    y+=8;
+    document.getElementById('relCaption').textContent = mode==='shutoff'
+      ? 'In the shut-off scenario the steady state is the starting level, so this shows how much RNA remains.'
+      : 'Shows how close each pool is to its final level at the selected time.';
+  }
+  const svg=document.getElementById('relBars'); svg.setAttribute('viewBox',`0 0 ${W} ${Math.max(y,60)}`); svg.innerHTML=g;
+}
+function drawBars(i){
+  const ser=barSeries(i);
+  document.getElementById('barTitle').textContent=`Abundance at ${fmtTime(run.cur.t[i])}`;
+  drawAbs(ser); drawRel(ser);
+}
+function render(){
+  const ne=document.getElementById('notice'); ne.hidden=!notice; ne.textContent=notice;
+  const i=Math.round(tFrac*(run.cur.t.length-1));
+  drawCell(i); drawBars(i); drawPlot(i); drawSS(); drawLegend();
+}
+
+// ---------- init ----------
+KNOBS.forEach(buildKnob); KNOBS.forEach(k=>drawKnob(k.key));
+update();
+window.addEventListener('resize',render);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{KNOBS.forEach(k=>drawKnob(k.key));render();});
+document.fonts && document.fonts.ready.then(render);
+</script>
+</body>
+</html>
