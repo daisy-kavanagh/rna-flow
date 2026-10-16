@@ -124,7 +124,7 @@ details.model summary{cursor:pointer;font-weight:700;font-size:1rem}
     <div class="condbar" id="condBar" hidden>
       <p>The dials edit the condition selected here.</p>
       <div class="seg" id="condTabs" role="group" aria-label="Condition to edit">
-        <button data-c="control" aria-pressed="false">Control</button><button data-c="case" aria-pressed="true">Case</button>
+        <button data-c="control" aria-pressed="true">Control</button><button data-c="case" aria-pressed="false">Case</button>
       </div>
       <button id="copyBtn">Copy control rates to case</button>
     </div>
@@ -452,7 +452,7 @@ $('compareChk').addEventListener('change',e=>{
   $('condBar').hidden=!compare;
   const sw=document.querySelector('input[value=switch]');
   sw.disabled=!compare; $('switchLabel').classList.toggle('disabled',!compare);
-  if(compare){ Object.assign(conds.case,conds.control); setActive('case'); }
+  if(compare){ Object.assign(conds.case,conds.control); setActive('control'); }
   else {
     if(mode==='switch'){mode='induction';document.querySelector('input[value=induction]').checked=true;}
     setActive('control');
